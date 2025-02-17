@@ -33,6 +33,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     GenerationConfig,
+    LogitsProcessorList,
     PreTrainedModel,
     PreTrainedTokenizerBase,
     Trainer,
@@ -207,7 +208,9 @@ class GRPOTrainer(Trainer):
         callbacks: Optional[list[TrainerCallback]] = None,
         optimizers: tuple[Optional[torch.optim.Optimizer], Optional[torch.optim.lr_scheduler.LambdaLR]] = (None, None),
         peft_config: Optional["PeftConfig"] = None,
+        generation_logits_processors: Optional["LogitsProcessorList"] = None,
     ):
+        self.generation_logits_processors = generation_logits_processors
         # Args
         if args is None:
             model_name = model if isinstance(model, str) else model.config._name_or_path
@@ -559,7 +562,10 @@ class GRPOTrainer(Trainer):
             # Regular generation path
             with unwrap_model_for_generation(self.model, self.accelerator) as unwrapped_model:
                 prompt_completion_ids = unwrapped_model.generate(
-                    prompt_ids, attention_mask=prompt_mask, generation_config=self.generation_config
+                    prompt_ids,
+                    attention_mask=prompt_mask,
+                    generation_config=self.generation_config,
+                    logits_processor=self.generation_logits_processors,
                 )
 
             # Compute prompt length and extract completion ids
